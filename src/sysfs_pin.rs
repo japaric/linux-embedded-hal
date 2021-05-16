@@ -29,11 +29,11 @@ impl SysfsPin {
 impl embedded_hal::digital::OutputPin for SysfsPin {
     type Error = sysfs_gpio::Error;
 
-    fn try_set_low(&mut self) -> Result<(), Self::Error> {
+    fn set_low(&mut self) -> Result<(), Self::Error> {
         self.0.set_value(0)
     }
 
-    fn try_set_high(&mut self) -> Result<(), Self::Error> {
+    fn set_high(&mut self) -> Result<(), Self::Error> {
         self.0.set_value(1)
     }
 }
@@ -41,7 +41,7 @@ impl embedded_hal::digital::OutputPin for SysfsPin {
 impl embedded_hal::digital::InputPin for SysfsPin {
     type Error = sysfs_gpio::Error;
 
-    fn try_is_high(&self) -> Result<bool, Self::Error> {
+    fn is_high(&self) -> Result<bool, Self::Error> {
         if !self.0.get_active_low()? {
             self.0.get_value().map(|val| val != 0)
         } else {
@@ -49,8 +49,28 @@ impl embedded_hal::digital::InputPin for SysfsPin {
         }
     }
 
-    fn try_is_low(&self) -> Result<bool, Self::Error> {
-        self.try_is_high().map(|val| !val)
+    fn is_low(&self) -> Result<bool, Self::Error> {
+        self.is_high().map(|val| !val)
+    }
+}
+
+impl embedded_hal::digital::IoPin<SysfsPin, SysfsPin> for SysfsPin {
+    type Error = sysfs_gpio::Error;
+
+    fn into_input_pin(self) -> Result<SysfsPin, Self::Error> {
+        self.set_direction(sysfs_gpio::Direction::In)?;
+        Ok(self)
+    }
+
+    fn into_output_pin(
+        self,
+        state: embedded_hal::digital::PinState,
+    ) -> Result<SysfsPin, Self::Error> {
+        self.set_direction(match state {
+            embedded_hal::digital::PinState::High => sysfs_gpio::Direction::High,
+            embedded_hal::digital::PinState::Low => sysfs_gpio::Direction::Low,
+        })?;
+        Ok(self)
     }
 }
 
